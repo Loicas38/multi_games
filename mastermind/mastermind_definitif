@@ -1,0 +1,170 @@
+#mastermind
+from random import randint
+from tkinter import*
+
+tk=Tk()
+canvas=Canvas(tk, width=500, height=550)
+canvas.pack()
+canvas.create_rectangle(150, 50, 300, 470)
+#text
+hauteur_text=68
+for w in range (0, 12):
+    canvas.create_text(78, hauteur_text, text='bien placée(s):')
+    canvas.create_text(350, hauteur_text, text='mal placée(s):')
+    hauteur_text=hauteur_text+35
+
+#définit le bas des cercles
+bas_cercle=465
+#définit le haut des cercles
+haut_cercle=445
+#hauteur du text
+hauteur=50
+#nombre d'essaies
+essaies=0
+#liste des couleurs
+liste_couleur=['red', 'orange', 'pink', 'green', 'yellow', 'grey', 'white', 'blue']
+
+for x in range (0, 11):
+    hauteur=hauteur+35
+    canvas.create_line(150, hauteur, 300, hauteur)
+
+hauteur=455
+#tirage au sort des couleurs (code à trouver)
+couleur1=randint(1,8)
+couleur2=randint(1,8)
+couleur3=randint(1,8)
+couleur4=randint(1,8)
+essaie=0
+
+#1=rouge, 2=orange, 3=rose, 4=vert, 5=jaune, 6=gris, 7=blanc, 8=bleu
+#couleur_bille1 : variable qui stocke la couleur actuelle de la bille
+couleur_bille1=1
+couleur_bille2=1
+couleur_bille3=1
+couleur_bille4=1
+
+#for t in range (0, 12):
+#dessin des billes
+
+def bille_1 (coul_rempl):
+    canvas.create_oval(170, bas_cercle, 190, haut_cercle, fill=coul_rempl)
+bille_1('red')
+
+def bille_2 (coul_rempl):
+    canvas.create_oval(200, bas_cercle, 220, haut_cercle, fill=coul_rempl)
+bille_2('red')
+
+def bille_3 (coul_rempl):
+    canvas.create_oval(230, bas_cercle, 250, haut_cercle, fill=coul_rempl)
+
+bille_3('red')
+
+def bille_4 (coul_rempl):
+    canvas.create_oval(260, bas_cercle, 280, haut_cercle, fill=coul_rempl)
+
+bille_4('red')
+
+canvas.delete (bille_1)
+
+
+
+def changer_couleur_bille(evenement):
+    global couleur_bille1, couleur_bille2, couleur_bille3, couleur_bille4
+    if evenement.keysym == 'Left':
+        couleur_bille1 = couleur_bille1+1
+        if couleur_bille1 == 9:
+            couleur_bille1 = 1
+        bille_1(liste_couleur[couleur_bille1-1])
+    if evenement.keysym == 'Up':
+        couleur_bille2 = couleur_bille2+1
+        if couleur_bille2 == 9:
+            couleur_bille2 = 1
+        bille_2(liste_couleur[couleur_bille2-1])
+    if evenement.keysym == 'Right':
+        couleur_bille3 = couleur_bille3+1
+        if couleur_bille3 == 9:
+            couleur_bille3 = 1
+        bille_3(liste_couleur[couleur_bille3-1]) 
+    if evenement.keysym == 'Down':
+        couleur_bille4 = couleur_bille4+1
+        if couleur_bille4==9:
+            couleur_bille4=1
+        bille_4(liste_couleur[couleur_bille4-1])
+
+canvas.bind_all('<KeyPress-Left>', changer_couleur_bille)
+canvas.bind_all('<KeyPress-Up>', changer_couleur_bille)
+canvas.bind_all('<KeyPress-Right>', changer_couleur_bille)
+canvas.bind_all('<KeyPress-Down>', changer_couleur_bille)
+
+#vérification bian placé et mal placé
+
+def verification (evenement):
+    global haut_cercle, bas_cercle, essaies, hauteur
+    bien_place=0
+    mal_place=0
+    if couleur1==couleur_bille1:
+        bien_place=bien_place+1
+    elif couleur1==couleur_bille2 or couleur1==couleur_bille3 or couleur1==couleur_bille4:
+        mal_place=mal_place+1
+
+    if couleur2==couleur_bille2:
+         bien_place=bien_place+1
+    elif couleur2==couleur_bille1 or couleur2==couleur_bille3 or couleur2==couleur_bille4:
+        mal_place=mal_place+1
+        
+    if couleur3 == couleur_bille3:
+        bien_place=bien_place+1
+    elif couleur3==couleur_bille1 or couleur3==couleur_bille2 or couleur3==couleur_bille4:
+        mal_place=mal_place+1
+        
+    if couleur4 == couleur_bille4:
+        bien_place=bien_place+1
+    elif couleur4==couleur_bille1 or couleur4==couleur_bille2 or couleur4==couleur_bille3:
+        mal_place=mal_place+1
+
+    #écriture du nombre de bien et mal placés
+    if bien_place==0:
+        canvas.create_text(130, hauteur, text='0', font=('Helvetica', 20), fill='medium blue')
+    if bien_place==1:
+        canvas.create_text(130, hauteur, text='1', font=('Helvetica', 20), fill='medium blue')
+    if bien_place==2:
+        canvas.create_text(130, hauteur, text='2', font=('Helvetica', 20), fill='medium blue')
+    if bien_place==3:
+        canvas.create_text(130, hauteur, text='3', font=('Helvetica', 20), fill='medium blue')
+    if bien_place==4:
+        canvas.create_text(130, hauteur, text='4', font=('Helvetica', 20), fill='medium blue')
+        canvas.create_text(230, 500, text='GAGNE', font=('Courier', 30), fill='gold')
+        canvas.unbind_all('<KeyPress-Left>')
+        canvas.unbind_all('<KeyPress-Up>')
+        canvas.unbind_all('<KeyPress-Right>')
+        canvas.unbind_all('<KeyPress-Down>')
+    if mal_place==0:
+        canvas.create_text(400, hauteur, text='0', font=('Helvetica', 20), fill='medium blue')
+    if mal_place==1:
+        canvas.create_text(400, hauteur, text='1', font=('Helvetica', 20), fill='medium blue')
+    if mal_place==2:
+        canvas.create_text(400, hauteur, text='2', font=('Helvetica', 20), fill='medium blue')
+    if mal_place==3:
+        canvas.create_text(400, hauteur, text='3', font=('Helvetica', 20), fill='medium blue')
+    if mal_place==4:
+        canvas.create_text(400, hauteur, text='4', font=('Helvetica', 20), fill='medium blue')
+    haut_cercle=haut_cercle-35
+    bas_cercle=bas_cercle-35
+    hauteur=hauteur-35
+    essaies=essaies+1
+    if essaies==12:
+        #tk.destroy()
+        canvas.unbind_all('<KeyPress-Left>')
+        canvas.unbind_all('<KeyPress-Up>')
+        canvas.unbind_all('<KeyPress-Right>')
+        canvas.unbind_all('<KeyPress-Down>')
+        canvas.create_text(230, 500, text='PERDU !', font=('Courier', 30), fill='red')
+        bas_cercle=540
+        haut_cercle=520
+        bille_1(liste_couleur[couleur1-1])
+        bille_2(liste_couleur[couleur2-1])
+        bille_3(liste_couleur[couleur3-1])
+        bille_4(liste_couleur[couleur4-1])
+        
+canvas.bind_all('<KeyPress-Return>', verification)
+tk.mainloop()
