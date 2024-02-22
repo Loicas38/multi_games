@@ -1,0 +1,554 @@
+from random import choice;
+from tkinter import*
+from functools import partial
+import pickle
+from os import path
+
+class Pendu():
+   def __init__(self, reset, joueur):
+        """ on initialise les variables"""
+        # mot à trouver
+        self.mot_secret = []
+        # où en est rendu le joueur
+        self.mot_en_cours = []
+        # lettres essayées
+        self.lettres_testees = []
+        self.tour = 0
+
+        # formatage du nom du joueur
+        joueur = joueur.lower()
+        self.joueur = joueur.strip()
+
+        # vérifie si le fichier contenant les sats existe, si c'est le cas on ne fait rien, sinon on le crée
+        fichier = path.isfile("jeu_pendu/stats_pendu.dat")
+        if (not fichier) or reset:
+           # si le dictionnaire est vide le premier joueur ne marche pas
+           donnees_jeu = {}
+           fichier_donnees = open("jeu_pendu/stats_pendu.dat", "wb")
+           pickle.dump(donnees_jeu, fichier_donnees)
+           fichier_donnees.close()
+
+        # ouverture du fichier contenant les données de jeu
+        fichier_donnees = open('jeu_pendu/stats_pendu.dat', 'rb')
+        self.donnees_jeu = pickle.load(fichier_donnees)
+        fichier_donnees.close()
+
+        # on vérifie si le joueur a déjà des stats sinon on lui en crée à 0
+        if joueur in self.donnees_jeu:
+            self.stats = self.donnees_jeu[joueur]
+        else:
+            self.stats = {"mots":[], "victoires":0, "defaites":0, "highscore":100}
+
+        # on cherhe s'il y a un meilleur joueur dans le cas où le dictionnaire n'est pas vide
+        self.best_player = None
+        if len(self.donnees_jeu) > 0:
+            high_score = 101
+            # on parcourt le dictionnaire des stats du fichier
+            for player, stats in self.donnees_jeu.items():
+                if stats['highscore'] < high_score:
+                    self.best_player = player
+            
+   def choix_mot(self):
+       """ choisit le mot secret dans la liste et met le mot en cours à 0"""
+       liste_mots = []
+       with open('jeu_pendu/dico.txt', 'r') as dico:
+           mots = dico.readlines()
+           for element in mots:
+               liste_mots.append(element.strip())
+       self.mot_secret = choice(liste_mots)
+       self.mot_en_cours = ["_" for lettre in self.mot_secret]
+       self.stats['mots'].append(self.mot_secret)
+
+   def test_lettre(self, lettre):
+      """ on va tester si la lettre passée est dans le mot secret. Si c'est le cas on la place dans le mot en cours, 
+      et on retourne True, i elle n'est pas dans le mot on l'ajoute à la liste des lettres déjà testés et on renvoir False,
+      et si elle a déjà été testée on renvoie False aussi"""
+      # permet de stocker les places où se trouve la lettre passé par l'utilisateur dans le mot secret
+      position_lettre = []
+      # on vérifie si la lettre est dans le mot secret et n'a pas encore été testée
+      if lettre in self.mot_secret and lettre not in self.mot_en_cours:
+         # on parcourt le mot secret pour voir où se trouve la lettre dans celui-ci, et si elle s'y trouve plusieurs fois
+         for indice, element in enumerate(self.mot_secret):
+            # si la lettre du mot secret est la même que celle jouée, on enregistre la position dans le mot
+            if element == lettre:
+               position_lettre.append(indice)
+         # on parcourt maintenant les indices enregistrés pour mettre la lettre aux bons endroits dans le mot 
+         # en cours d'être trouvé
+         for indice in position_lettre:
+            self.mot_en_cours[indice] = lettre
+         # on ajoute la lettre qui vient d'être testée à la liste des lettres déjà testées
+         self.lettres_testees.append(lettre)
+      # si la lettre a déjà été testée on retourne False
+      elif lettre in self.lettres_testees:
+         return False
+      else:
+         self.lettres_testees.append(lettre)
+         self.tour += 1
+         return False
+      
+   def condition_victoire(self):
+      """ vérifie s'il y a un gagnant, et retourne false si perdu, none s'il n'y a rien et True si c'est gagné"""
+      if self.tour == 6:
+         self.stats['defaites'] += 1
+
+         self.donnees_jeu[self.joueur] = self.stats
+         fichier_donnees = open("jeu_pendu/stats_pendu.dat", "wb")
+         pickle.dump(self.donnees_jeu, fichier_donnees)
+         fichier_donnees.close()
+         return False
+      elif "_" in self.mot_en_cours:
+         return None
+      else:
+        if self.stats['highscore'] == None or self.tour < self.stats['highscore']:
+            self.stats['highscore'] = self.tour
+        self.stats['victoires'] += 1
+
+        self.donnees_jeu[self.joueur] = self.stats
+        fichier_donnees = open("jeu_pendu/stats_pendu.dat", "wb")
+        pickle.dump(self.donnees_jeu, fichier_donnees)
+        fichier_donnees.close()
+        return True
+
+class Terminal():
+    def __init__(self):
+        pass
+
+    def dessin(self, nb):
+        tab=[
+        """
+            +-------+
+            |
+            |
+            |
+            |
+            |
+        ==============
+        """,
+        """
+            +-------+
+            |       |
+            |       O
+            |
+            |
+            |
+        ==============
+        """
+            ,
+        """
+            +-------+
+            |       |
+            |       O
+            |       |
+            |
+            |
+        ==============
+        """,
+        """
+            +-------+
+            |       |
+            |       O
+            |      -|
+            |
+            |
+        ==============
+        """,
+        """
+            +-------+
+            |       |
+            |       O
+            |      -|-
+            |
+            |
+        ==============
+        """,
+        """
+            +-------+
+            |       |
+            |       O
+            |      -|-
+            |      |
+            |
+        ==============
+        """,
+        """
+            +-------+
+            |       |
+            |       O
+            |      -|-
+            |      | |
+            |
+        ==============
+        """
+        ]
+        return tab[nb]
+
+    def afficher(self, dessin, mot, tour, lettres_jouees):
+        print()
+        print(f"Il te reste encore {6-tour} chance(s) pour gagner !")
+        print(dessin, end="")
+        print(*mot, sep=" ")
+        lettres = lettres_jouees
+        lettres.sort()
+        print(f"tu as déjà joué les lettres : ")
+        for lettre in lettres_jouees:
+            print(lettre, end = ", ")
+        print()
+
+    def choix_lettre(self, lettres_testees):
+        lettre = None
+        while lettre == None:
+            try:
+                lettre = input("quelle lettre veux-tu jouer ? ")
+                lettre = lettre.upper()
+                lettre = lettre.strip()
+                if lettre in lettres_testees:
+                    print("Tu as déjà joué cette lettre")
+                    raise Exception
+                if len(lettre) != 1:
+                    print("Il ne faut entrer qu'une seule lettre")
+                    raise Exception
+                
+            except:
+                lettre = None
+        return lettre
+
+class Graphique():
+    def __init__ (self):
+        self.fenetre = Tk()
+        self.fenetre.title("Pendu")
+        # empêche le redimensionnement de la fenêtre
+        self.fenetre.resizable(0, 0)
+        # fait passer la fenêtre au premier plan
+        self.fenetre.wm_attributes("-topmost", 1)
+        self.canvas = Canvas(self.fenetre, height = 580, width = 600)
+        self.canvas.pack()
+        # ouverture des images à afficher et enregistrement
+        self.images = []
+        for x in range(1, 8):
+            fichier = f"jeu_pendu/etape_{x}.gif"
+            image = PhotoImage(file=fichier)
+            self.images.append(image)
+
+    def recup_lettre(self, _):
+        """ récupère la lettre entrée par l'utilisateur quand il clique sur entré """
+        lettre = self.lettre_choisie.get()
+        self.lettre = lettre.upper()
+        self.lettre = self.lettre.strip()
+        if len(self.lettre) != 1:
+            self.canvas.itemconfigure(self.text_trop_long, state='normal')
+            self.lettre_choisie.delete(0, 'end')
+        else:
+            self.canvas.itemconfigure(self.text_trop_long, state = 'hidden')
+            # vide la zone où l'utilisateur entre sa lettre
+            self.lettre_choisie.delete(0, 'end')
+            self.fenetre.quit()       
+        
+    def retourner_lettre(self):
+        """ permet de récupérer la lettre choisie """
+        return self.lettre
+
+    def afficher(self, mot, tour, victoire, defaite, high_score, victoire_total, defaite_totale, high_score_total, best_player):
+        """ affiche l'interface graphique au début de chaque partie en créant les éléments à afficher """
+        # stats de le partie en cours
+        # titre 
+        self.canvas.create_text(2, 10, anchor = 'w', justify='left', font=("", 11, 'underline', 'bold'), text='stats du jeu en cours :')
+        # on affiche le score et le nombre de parties jouées 
+        self.canvas.create_text(2, 28, anchor = 'w', justify = 'left', text = f'Tu as joué {victoire+defaite} partie(s),')
+        self.canvas.create_text(2, 43, anchor='w', justify = 'left', text=f'gagné {victoire} fois et perdu {defaite} fois')
+        # affichage du high score
+        if high_score == 100:
+            self.canvas.create_text(2, 60, anchor='w', justify = 'left', text = "gagne une partie pour avoir un high score")
+        else:
+            self.canvas.create_text(2, 60, anchor='w', justify = 'left', text = f"tu as fait {high_score} erreur(s) lors de ta meilleure partie")
+
+        # stats du fichier:
+        # titre 
+        self.canvas.create_text(598, 10, anchor = 'e', justify='left', font=("", 11, 'underline', 'bold'), text='stats totales du joueur :')
+        # on affiche le score et le nombre de parties jouées 
+        self.canvas.create_text(598, 28, anchor = 'e', justify = 'left', text = f'Parties totales jouées : {victoire_total+defaite_totale}')
+        self.canvas.create_text(598, 43, anchor='e', justify = 'left', text=f'tu as gagné {victoire_total} fois et perdu {defaite_totale} fois au total')
+        # affichage du high score
+        if high_score_total == 100:
+            self.canvas.create_text(598, 60, anchor='e', justify = 'left', text = "gagne une partie pour avoir un high score")
+        else:
+            self.canvas.create_text(598, 60, anchor='e', justify = 'left', text = f"tu as fait {high_score_total} erreur(s) lors de ta meilleure partie")
+
+        # meilleur joueur
+        if best_player != None:
+            self.canvas.create_text(2, 100, anchor = 'w', font=("", 10, 'underline', 'bold'), text=f"meilleur joueur : {best_player}")
+        else:
+            self.canvas.create_text(2, 100, anchor = 'w', font=("", 10, 'underline', 'bold'), text=f"Il n'y a pas de meilleur joueur")
+        
+        # création de l'image sur le canvas
+        self.image = self.canvas.create_image(300, 210, image=self.images[0])
+        # texte avec le nombre de tours restants 
+        self.mon_text = self.canvas.create_text(300, 90, justify = 'center', text=f"il te reste {6-tour} chance(s) pour gagner")
+        # liste des lettres jouées
+        self.text_lettres_jouees = self.canvas.create_text(300, 320, justify="center", text=f"tu as déjà joué les lettres :")
+        self.lettres_jouees = self.canvas.create_text(300, 335, justify = 'center', text='')
+        # affiche ce que le joueur a trouvé
+        self.text_mot = self.canvas.create_text(300, 360, justify = 'center', text = 'mot à trouver :')
+        self.mot = self.canvas.create_text(300, 375, justify = 'center', text = mot)
+        # s'affiche quand l'utilisateur entre trop de lettres
+        self.text_trop_long = self.canvas.create_text(300, 430, text="Tu ne peux entrer qu'une seule lettre", fill='red', state='hidden')
+        # appelle la fonction récupérant la lettre quand entré est pressé
+        self.fenetre.bind('<Return>', self.recup_lettre)
+        # zone dans laquelle l'utilisateur va pouvoir entrer la lettre choisie
+        self.lettre_choisie = Entry(self.fenetre)
+        self.lettre_choisie.pack()
+        self.lettre_choisie.place(x=230, y=400)
+        self.canvas.pack()
+
+    def update(self, mot, lettres_jouees, tour, arreter):
+        """ met à jour l'interface graphique à chaque tour"""
+        # on trie les lettres pour les afficher dans l'ordre alphabétiques (plus simple quand on veut voir ce que l'on a déjà joué)
+        lettres = lettres_jouees
+        lettres.sort()
+        # modification de l'image affichée
+        self.canvas.itemconfigure(self.image, image = self.images[tour])
+        # modif des tours restants
+        self.canvas.itemconfigure(self.mon_text, text=f"il te reste {6-tour} chance(s) pour gagner")
+        # modif des lettres jouées
+        lettres = ", ".join(lettres_jouees)
+        self.canvas.itemconfigure(self.lettres_jouees, text=lettres)
+        # modif du mot
+        self.canvas.itemconfigure(self.mot, text = mot)
+        # on lance la mainloop uniquement s'il faut jouer
+        if not arreter:
+            self.fenetre.mainloop()
+        if arreter:
+            self.fenetre.unbind('<Return>')
+            self.fenetre.quit()
+    
+    def gagner(self, gagnant, mot, tour):
+        if not gagnant:
+            self.canvas.create_text(300, 480, justify='center', font=('', 20), text = "Dommage, tu as perdu !", fill='red')
+            self.canvas.create_text(300, 520, justify='center', font=('', 20), text=f"le mot était {mot}", fill = 'red')
+        else:
+            self.canvas.create_text(300, 480, justify='center', font=('', 20), text = "Bravo tu as trouvé le mot !", fill='blue')
+        fichier = f"jeu_pendu/etape_{tour+1}.gif"
+        image = PhotoImage(file=fichier)
+        self.canvas.itemconfigure(self.image, image = image)
+        self.canvas.pack()
+        self.rejouer()
+        self.fenetre.mainloop()
+
+    def choix_rejouer(self, choix):
+        """ récupère le choix de rejouer ou non du jouer : 1 = rejouer, 2 arrêter et 3 changer de joueur"""
+        self.jouer = choix
+        self.fenetre.destroy()
+
+    def return_rejouer(self):
+        """ retourne si le joueur a décider ou non de rejouer ou changer de joueur """
+        return self.jouer
+
+    def rejouer(self):
+        """ crée les bouton pour choisir de rejouer ou non"""
+        self.continuer = Button(self.fenetre, height = 2, text = "Pour rejouer,\ncliquez ici", command = partial(self.choix_rejouer, 1))
+        self.arreter = Button(self.fenetre, height = 2, text = "Pour arrêter,\ncliquez ici", command = partial(self.choix_rejouer, 2))
+        self.changer_joueur = Button(self.fenetre, height = 2, text = "changer de joueur ou/et \nde mode de jeu", command = partial(self.choix_rejouer, 3))
+        self.continuer.pack()
+        self.arreter.pack()
+        self.changer_joueur.pack
+        self.changer_joueur.place(x = 60, y = 250)
+        self.arreter.place(x=110, y=150)
+        self.continuer.place(x=420, y=150)
+ 
+class Mode_jeu():
+    def __init__(self):
+        self.fenetre = Tk()
+        self.fenetre.title("choix du mode de jeu")
+        # empêche le redimensionnement de la fenêtre
+        self.fenetre.resizable(0, 0)
+        # fait passer la fenêtre au premier plan
+        self.fenetre.wm_attributes("-topmost", 1)
+        self.canvas = Canvas(self.fenetre, height = 200, width = 400)
+        self.canvas.pack()
+
+        self.reset = False
+
+    def recup_joueur(self, _ = ""):
+        """ récupère le nom du joueur """
+        self.joueur = self.choix_joueur.get()
+        self.choix_joueur.delete(0, 'end')
+        self.fenetre.unbind('<Return>')
+        self.canvas.itemconfigure(self.text, state='hidden')
+        self.choix_joueur.destroy()
+        self.fenetre.quit()
+
+    def nom_joueur(self):
+        """ crée la zone pour récupérer le nom du joueur et attend qu'il appuie sur entré """
+        self.choix_joueur = Entry(self.fenetre)
+        self.text = self.canvas.create_text(200, 50, font = ("", 15, 'bold'), text = "entrez votre nom")
+        self.choix_joueur.pack()
+        self.choix_joueur.place(x=130, y=100)
+        self.canvas.pack()
+        self.fenetre.bind('<Return>', self.recup_joueur)
+        self.fenetre.mainloop()
+
+    def choix_main(self, choix):
+        """ définit dans quel mode on va jouer : 1 dans le terminal, 2 dans l'interface graphique 
+        puis on détruit la fenetre et les boutons """
+        self.choix = choix
+        self.fenetre.quit()
+        self.terminal.destroy()
+        self.graphique.destroy()
+        self.reinitialiser.destroy()
+        self.fenetre.destroy()
+
+    def reset_file(self):
+        """ on réinitialise les stats si appelé """
+        self.reset = True
+
+    def choix_mode(self):
+        """ permet de choisir le mode de jeu """
+        self.terminal = Button(self.fenetre, height = 3, width = 20, text = "jouer dans le terminal", command = partial(self.choix_main, 1))
+        self.graphique = Button(self.fenetre, height = 3, width = 20, text = "jouer avec l'interface\ngrapgique", command = partial(self.choix_main, 2))
+        self.reinitialiser = Button(self.fenetre, height = 3, width = 20, text='reset les stats générales', command = self.reset_file)
+        self.terminal.pack()
+        self.graphique.pack()
+        self.reinitialiser.pack()
+        self.terminal.place(x = 20, y = 20)
+        self.reinitialiser.place(x=120, y=110)
+        self.graphique.place(x = 220, y = 20)
+        self.fenetre.mainloop()
+
+
+def choix_jeu():
+    """ permet à l'utilisateur de choisir s'il veut jouer dans le terminal ou avec l'interface graphique"""
+    # permet de changer de joueur pendant le jeu sans avoir à relancer celui-ci 
+    choisir = True
+    while choisir:
+        # on remet à False pour que la boucle ne se relance pas si le joueur veut arrêter
+        choisir = False
+        choix = Mode_jeu()
+        # permet au joueur de rentrer son nom 
+        choix.nom_joueur()
+        # on le récupère
+        joueur = choix.joueur
+        # interface graphique pour choisir de jouer da  ns le terminal, interface graphique ou reset les stats
+        choix.choix_mode()
+        # on récupère le mode de jeu
+        mode = choix.choix
+        # et si le joueur veut rset les stats
+        reset = choix.reset
+        if mode == 1:
+            main_terminal(reset, joueur)
+        else:
+            # si le joueur veut changer de joueur il est retourné True, sinon None qui a valeur de False
+            choisir = main_tkinter(reset, joueur)
+
+def main_terminal(reset, joueur):
+    """ effectue les appels nécessaires pour jouer dans le terminal """
+    jouer = True
+    while jouer :
+        terminal = Terminal()
+        pendu = Pendu(reset, joueur)
+        pendu.choix_mot()
+        gagnant = None
+        while gagnant == None:
+            dessin = terminal.dessin(pendu.tour)
+            terminal.afficher(dessin, pendu.mot_en_cours, pendu.tour, pendu.lettres_testees)
+            lettre = terminal.choix_lettre(pendu.lettres_testees)
+            lettre_valide = pendu.test_lettre(lettre)
+            gagnant = pendu.condition_victoire()
+
+        dessin = terminal.dessin(pendu.tour)
+        terminal.afficher(dessin, pendu.mot_en_cours, pendu.tour, pendu.lettres_testees)
+        print()
+        if gagnant == True:
+            print("Bravo, tu as gagné !")
+        else:
+            print(f"Dommage, tu as perdu le mot était {pendu.mot_secret}")
+
+        try:
+            rejouer = int(input("Si tu veux rejouer entre 1, sinon ce que tu veux "))
+            if rejouer != 1:
+                jouer = False
+        except ValueError:
+            jouer = False
+
+        reset = False
+    print("Merci d'avoir joué et à bientôt !")
+
+def main_tkinter(reset, joueur):
+    """ cette fonction va réaliser tous les appels nécessaire pour jouer avec l'interface graphique, 
+    et ce pour autant de parties que souhaité """
+    # initialisation des variables 
+    # nombre total de victoire
+    victoire = 0
+    # nombre total de défaites
+    defaite = 0
+    # meilleur score, qui est initialisé à 100, valeur impossible à atteindre
+    high_score = 100
+    # définit si le joueur veut on non rejouer : True -> rejouer, False -> arrêter
+    rejouer = True
+    # stocke tous les mots joués
+    mots = []
+
+    # boucle générale qui est relancée pour chaque partie
+    while rejouer:
+        # création des objets
+        graphique = Graphique()
+        pendu = Pendu(reset, joueur)
+        # choisi le mot secret
+        pendu.choix_mot()
+        # affiche les graphiques
+        graphique.afficher(pendu.mot_en_cours, pendu.tour, victoire, defaite, high_score, pendu.stats['victoires'], pendu.stats['defaites'], pendu.stats['highscore'], pendu.best_player)
+        # on enregistre le mot utilisé
+        mots.append(pendu.mot_secret)
+
+        # appelle les fonctions nécessaires jusqu'à ce que l'un des joueurs gagne
+        while True:
+            # mise à jour de l"interface graphique
+            graphique.update(pendu.mot_en_cours, pendu.lettres_testees, pendu.tour, False)
+            # récupération de la lettre jouée
+            lettre = graphique.retourner_lettre()
+            # test pour voir si la lettre est dans le mot à trouver
+            pendu.test_lettre(lettre)
+            # on vérifie si un joueur a gagné ou s'il a perdu
+            gagner = pendu.condition_victoire()
+            # si le joueur a gagné ou perdu on sort de la boucle
+            if gagner == True or gagner == False:
+                break
+        
+        # MAJ interface graphique
+        graphique.update(pendu.mot_en_cours, pendu.lettres_testees, pendu.tour, True)
+        # affichage du message de victoire ou de défaite et choix de rejouer ou non
+        graphique.gagner(gagner, pendu.mot_secret, pendu.tour)
+        # on récupère la réponse du joueur
+        rejouer = graphique.return_rejouer()
+
+        # récupération du score en cas de victpoire, sinon on le met à 100
+        if gagner:
+            score = pendu.tour
+        else:
+            score = 100
+        
+        # si le score est meilleur que le high score, MAJ du high score
+        if score > 0 and score < high_score:
+            high_score = score
+
+        # MAJ des compteurs de victoires et défaites
+        if gagner :
+            victoire += 1
+        else:
+            defaite += 1
+        
+        # on remet le reset du fichier à False, sinon il va se réinitialiser en permanence 
+        reset = False
+
+        # 1 signifie que l'on veut rejouer, 2 arrêter et 3 changer de joueur
+        if rejouer == 1:
+            rejouer = True
+        elif rejouer == 2:
+            rejouer = False
+        else:
+            return True
+
+
+# définit si l'on réinitialise le fichier de stats
+reset = False
+# lancement du jeu en commençant par le choix du terminal ou de l'interface graphique
+#choix_jeu()
+#main_tkinter(False, "lucas")
